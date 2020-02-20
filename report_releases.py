@@ -2,10 +2,15 @@
 """
 A humble script to build a humble report about Github releases in an organization.
 
-usage: report_releases.py [-h] [-v] -s START_DATE -e END_DATE -o ORG -u USER
-                          -t TOKEN -a API_URL
+Usage: report_releases.py [-h] [-v]
+            -s START_DATE
+            -e END_DATE
+            -o ORG
+            -u USER
+            -t TOKEN
+            -a API_URL
 
-optional arguments:
+Optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         Print INFO, WARNING, and ERROR messages to the stdout
                         or stderr.
@@ -69,7 +74,12 @@ def main():
         release_url_list.append(f"{args['api_url']}/repos/{args['org']}/{repo}/releases")
 
     # Create a dataframe to manage the data.
-    df_releases = pandas.DataFrame(columns=['DATE', 'AUTHOR', 'TAG', 'NAME', 'URL'])
+    df_releases = pandas.DataFrame(columns=['DATE (UTC)',
+                                            'AUTHOR',
+                                            'TAG',
+                                            'REPOSITORY',
+                                            'NAME',
+                                            'URL'])
 
     # Get data for releases.
     LOG.info("Getting releases in %s", args["org"])
@@ -80,28 +90,30 @@ def main():
                                 auth=auth)
 
         for release in response.json():
-            df_releases = df_releases.append({'DATE': release["published_at"],
-                                              'AUTHOR': release["author"]["login"],
-                                              'TAG': release["tag_name"],
-                                              'NAME': release["name"],
-                                              'URL': release["url"]}, ignore_index=True)
+            df_releases = \
+                df_releases.append({'DATE (UTC)': release["published_at"],
+                                    'AUTHOR': release["author"]["login"],
+                                    'TAG': release["tag_name"],
+                                    'REPOSITORY': release["url"].split("/")[7],
+                                    'NAME': release["name"],
+                                    'URL': release["html_url"]}, ignore_index=True)
 
     # Convert the DATE column to datetime.
-    df_releases['DATE'] = pandas.to_datetime(df_releases.DATE)
+    df_releases['DATE (UTC)'] = pandas.to_datetime(df_releases["DATE (UTC)"])
     start_date = pandas.to_datetime(args["start_date"], format="%Y-%m-%d")
     end_date = pandas.to_datetime(args["end_date"], format="%Y-%m-%d")
 
     # Remove timezone information from the DATE column.
-    df_releases["DATE"] = df_releases["DATE"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    df_releases["DATE (UTC)"] = df_releases["DATE (UTC)"].dt.strftime("%Y-%m-%d %H:%M:%S")
     # Convert back to datetime.
-    df_releases['DATE'] = pandas.to_datetime(df_releases.DATE)
+    df_releases['DATE (UTC)'] = pandas.to_datetime(df_releases["DATE (UTC)"])
 
     # Filter for the specified period.
-    df_releases = df_releases[(df_releases['DATE'] > start_date) &
-                              (df_releases['DATE'] < end_date)]
+    df_releases = df_releases[(df_releases['DATE (UTC)'] > start_date) &
+                              (df_releases['DATE (UTC)'] < end_date)]
 
     # Order datafame (descending date).
-    df_releases = df_releases.sort_values(by=['DATE'], ascending=False)
+    df_releases = df_releases.sort_values(by=['DATE (UTC)'], ascending=True)
     LOG.debug(df_releases)
 
     save_output_files(df_releases, start_date, end_date)
@@ -110,8 +122,8 @@ def main():
 def save_output_files(df_releases: pandas.DataFrame,
                       start_date, end_date):
     """Create the output files with the data in them."""
-    LOG.info("Type of start_date: %s", type(start_date))
-    LOG.info("Type of end_date: %s", type(end_date))
+    LOG.debug("Type of start_date: %s", type(start_date))
+    LOG.debug("Type of end_date: %s", type(end_date))
     filename = f"releases_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}"
     # Create the absolute path of the resultant file.
     csv_abs_filename = os.path.join(DIR_PATH, filename + ".csv")
