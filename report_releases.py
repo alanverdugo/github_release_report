@@ -55,22 +55,66 @@ def main():
     """Drive program flow."""
     args = parse_args()
 
+    # Authenticate.
     auth = requests.auth.HTTPBasicAuth(args["user"], args["token"])
 
     # Get the list of repositories in the organization.
-    LOG.info("Getting repositories in %s", args["org"])
+    LOG.info("Getting repositories in the %s organization...", args["org"])
     repo_urls = f"{args['api_url']}/orgs/{args['org']}/repos"
-    response = requests.get(repo_urls, headers=HEADERS, params=PARAMS, auth=auth)
+    # Execute get request.
+    response = requests.get(repo_urls,
+                            headers=HEADERS,
+                            params=PARAMS,
+                            auth=auth)
+    # Parse response.
     parsed_response = response.json()
 
-    # Put all the repositories in a list.
-    repo_list = []
-    for repo in parsed_response:
-        repo_list.append(repo["name"])
+    # Put all the repository names in a list.
+    repo_list = [repo["name"] for repo in parsed_response]
 
-    # Get releases for each repository.
+    # Build a dataframe with the releases data.
+    df_releases = get_releases(repo_list=repo_list, args=args, auth=auth)
+
+    # Convert the DATE column to datetime.
+    df_releases["DATE (UTC)"] = pandas.to_datetime(df_releases["DATE (UTC)"])
+    start_date = pandas.to_datetime(args["start_date"], format="%Y-%m-%d")
+    end_date = pandas.to_datetime(args["end_date"], format="%Y-%m-%d")
+
+    # Change timezone.
+    #df_releases["DATE (UTC)"] = df_releases["DATE (UTC)"].dt.tz_convert()
+
+    # Remove timezone information from the DATE column.
+    df_releases["DATE (UTC)"] = \
+        df_releases["DATE (UTC)"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    # Convert back to datetime.
+    df_releases["DATE (UTC)"] = pandas.to_datetime(df_releases["DATE (UTC)"])
+
+    # Filter for the specified period.
+    df_releases = df_releases[(df_releases['DATE (UTC)'] > start_date) &
+                              (df_releases['DATE (UTC)'] < end_date)]
+
+    # Order datafame (by descending date).
+    df_releases = df_releases.sort_values(by=['DATE (UTC)'], ascending=True)
+
+    # Save the data into .csv and .xlsx files.
+    save_output_files(df_releases, start_date, end_date)
+
+
+def get_releases(repo_list: list,
+                 args: dict,
+                 auth: requests.auth.HTTPBasicAuth):
+    """
+    Get release data from the releases endpoint and add it to a dataframe.
+
+    :param repo_list: A list containing the name of the repositories in the org.
+    :param args: A dictionary containing the CLI arguments.
+    :param auth: The requests authentication object.
+    :returns df_releases: A Pandas DataFrame with GitHub releases data.
+    """
+    # Get data for each repository.
     release_url_list = []
     for repo in repo_list:
+        # Get a list of releases URLs.
         release_url_list.append(f"{args['api_url']}/repos/{args['org']}/{repo}/releases")
 
     # Create a dataframe to manage the data.
@@ -82,13 +126,14 @@ def main():
                                             'URL'])
 
     # Get data for releases.
-    LOG.info("Getting releases in %s", args["org"])
+    LOG.info("Getting releases in the %s organization...", args["org"])
     for release_url in release_url_list:
+        # Execute get request.
         response = requests.get(release_url,
                                 headers=HEADERS,
                                 params=PARAMS,
                                 auth=auth)
-
+        # Add the data to a pandas dataframe.
         for release in response.json():
             df_releases = \
                 df_releases.append({'DATE (UTC)': release["published_at"],
@@ -96,47 +141,37 @@ def main():
                                     'TAG': release["tag_name"],
                                     'REPOSITORY': release["url"].split("/")[7],
                                     'NAME': release["name"],
-                                    'URL': release["html_url"]}, ignore_index=True)
-
-    # Convert the DATE column to datetime.
-    df_releases['DATE (UTC)'] = pandas.to_datetime(df_releases["DATE (UTC)"])
-    start_date = pandas.to_datetime(args["start_date"], format="%Y-%m-%d")
-    end_date = pandas.to_datetime(args["end_date"], format="%Y-%m-%d")
-
-    # Remove timezone information from the DATE column.
-    df_releases["DATE (UTC)"] = df_releases["DATE (UTC)"].dt.strftime("%Y-%m-%d %H:%M:%S")
-    # Convert back to datetime.
-    df_releases['DATE (UTC)'] = pandas.to_datetime(df_releases["DATE (UTC)"])
-
-    # Filter for the specified period.
-    df_releases = df_releases[(df_releases['DATE (UTC)'] > start_date) &
-                              (df_releases['DATE (UTC)'] < end_date)]
-
-    # Order datafame (descending date).
-    df_releases = df_releases.sort_values(by=['DATE (UTC)'], ascending=True)
-    LOG.debug(df_releases)
-
-    save_output_files(df_releases, start_date, end_date)
+                                    'URL': release["html_url"]},
+                                   ignore_index=True)
+    # Return data.
+    return df_releases
 
 
 def save_output_files(df_releases: pandas.DataFrame,
                       start_date, end_date):
-    """Create the output files with the data in them."""
+    """
+    Create the output files (with the data in them).
+
+    :param
+    :param
+    :param
+    """
     LOG.debug("Type of start_date: %s", type(start_date))
     LOG.debug("Type of end_date: %s", type(end_date))
+
     filename = f"releases_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}"
-    # Create the absolute path of the resultant file.
+
+    # Save data to .csv
     csv_abs_filename = os.path.join(DIR_PATH, filename + ".csv")
     LOG.info("Saving data to %s", csv_abs_filename)
-    # Save data to .csv
     df_releases.to_csv(csv_abs_filename,
                        index=False,
                        sep="|",
                        encoding="utf-8")
 
+    # Save data to .xlsx
     xlsx_abs_filename = os.path.join(DIR_PATH, filename + ".xlsx")
     LOG.info("Saving data to %s", xlsx_abs_filename)
-    # Save data to .xlsx
     df_releases.to_excel(xlsx_abs_filename,
                          index=None,
                          header=True,
@@ -158,7 +193,8 @@ def parse_args():  # pragma: no cover
                         dest="verbose",
                         default=False,
                         action="store_true")
-    parser.add_argument("-d", "--debug",
+    parser.add_argument("-d",
+                        "--debug",
                         help="Print DEBUG messages to the stdout or stderr.",
                         dest="debug",
                         default=False,
@@ -201,7 +237,7 @@ def parse_args():  # pragma: no cover
                         dest="api_url",
                         default="https://api.github.com",
                         type=str,
-                        required=True)
+                        required=False)
     args = vars(parser.parse_args())
 
     # Set logging level.

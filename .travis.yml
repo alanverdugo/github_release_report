@@ -1,0 +1,34 @@
+language: python
+python:
+  - "3.7.3"
+
+stages:
+  - linting
+  - unit test
+  - cyclomatic complexity
+  - security
+  - deploy
+jobs:
+  include:
+    - stage: linting
+      name: "PEP-8 compliance and other linting"
+      script:
+          - pip install -r requirements.txt
+          - pip install pylint
+          - pylint report_releases.py
+          - pip install pydocstyle
+          - pydocstyle report_releases.py
+    - stage: cyclomatic complexity
+      name: "Cyclomatic complexity checking"
+      script:
+          - pip install xenon
+          - xenon --max-absolute C --max-modules C --max-average C report_releases.py
+    - stage: security
+      name: "Security vulnerabilities checking"
+      script:
+          # Bandit (Static Application Security Testing for Python).
+          - pip install bandit
+          - bandit report_releases.py
+          # Safety (Check dependencies for known security vulnerabilities).
+          - pip install safety
+          - safety check --full-report --file requirements.txt
