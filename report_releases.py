@@ -73,31 +73,7 @@ def main():
     repo_list = [repo["name"] for repo in parsed_response]
 
     # Build a dataframe with the releases data.
-    df_releases = get_releases(repo_list=repo_list, args=args, auth=auth)
-
-    # Convert the DATE column to datetime.
-    df_releases["DATE (UTC)"] = pandas.to_datetime(df_releases["DATE (UTC)"])
-    start_date = pandas.to_datetime(args["start_date"], format="%Y-%m-%d")
-    end_date = pandas.to_datetime(args["end_date"], format="%Y-%m-%d")
-
-    # Change timezone.
-    #df_releases["DATE (UTC)"] = df_releases["DATE (UTC)"].dt.tz_convert()
-
-    # Remove timezone information from the DATE column.
-    df_releases["DATE (UTC)"] = \
-        df_releases["DATE (UTC)"].dt.strftime("%Y-%m-%d %H:%M:%S")
-    # Convert back to datetime.
-    df_releases["DATE (UTC)"] = pandas.to_datetime(df_releases["DATE (UTC)"])
-
-    # Filter for the specified period.
-    df_releases = df_releases[(df_releases['DATE (UTC)'] > start_date) &
-                              (df_releases['DATE (UTC)'] < end_date)]
-
-    # Order datafame (by descending date).
-    df_releases = df_releases.sort_values(by=['DATE (UTC)'], ascending=True)
-
-    # Save the data into .csv and .xlsx files.
-    save_output_files(df_releases, start_date, end_date)
+    get_releases(repo_list=repo_list, args=args, auth=auth)
 
 
 def get_releases(repo_list: list,
@@ -117,13 +93,12 @@ def get_releases(repo_list: list,
         # Get a list of releases URLs.
         release_url_list.append(f"{args['api_url']}/repos/{args['org']}/{repo}/releases")
 
+    # The list of column names that will be used in the dataframe and final
+    # report(s).
+    columns = ["DATE (UTC)", "AUTHOR", "TAG", "REPOSITORY", "NAME", "URL"]
+
     # Create a dataframe to manage the data.
-    df_releases = pandas.DataFrame(columns=['DATE (UTC)',
-                                            'AUTHOR',
-                                            'TAG',
-                                            'REPOSITORY',
-                                            'NAME',
-                                            'URL'])
+    df_releases = pandas.DataFrame(columns=columns)
 
     # Get data for releases.
     LOG.info("Getting releases in the %s organization...", args["org"])
@@ -136,15 +111,37 @@ def get_releases(repo_list: list,
         # Add the data to a pandas dataframe.
         for release in response.json():
             df_releases = \
-                df_releases.append({'DATE (UTC)': release["published_at"],
-                                    'AUTHOR': release["author"]["login"],
-                                    'TAG': release["tag_name"],
-                                    'REPOSITORY': release["url"].split("/")[7],
-                                    'NAME': release["name"],
-                                    'URL': release["html_url"]},
+                df_releases.append({columns[0]: release["published_at"],
+                                    columns[1]: release["author"]["login"],
+                                    columns[2]: release["tag_name"],
+                                    columns[3]: release["url"].split("/")[7],
+                                    columns[4]: release["name"],
+                                    columns[5]: release["html_url"]},
                                    ignore_index=True)
-    # Return data.
-    return df_releases
+
+    # Convert the DATE column to datetime.
+    df_releases[columns[0]] = pandas.to_datetime(df_releases[columns[0]])
+    start_date = pandas.to_datetime(args["start_date"], format="%Y-%m-%d")
+    end_date = pandas.to_datetime(args["end_date"], format="%Y-%m-%d")
+
+    # Change timezone.
+    #df_releases["DATE (UTC)"] = df_releases["DATE (UTC)"].dt.tz_convert()
+
+    # Remove timezone information from the DATE column.
+    df_releases[columns[0]] = \
+        df_releases[columns[0]].dt.strftime("%Y-%m-%d %H:%M:%S")
+    # Convert back to datetime.
+    df_releases[columns[0]] = pandas.to_datetime(df_releases["DATE (UTC)"])
+
+    # Filter for the specified period.
+    df_releases = df_releases[(df_releases[columns[0]] > start_date) &
+                              (df_releases[columns[0]] < end_date)]
+
+    # Order datafame (by descending date).
+    df_releases = df_releases.sort_values(by=[columns[0]], ascending=True)
+
+    # Save the data into .csv and .xlsx files.
+    save_output_files(df_releases, start_date, end_date)
 
 
 def save_output_files(df_releases: pandas.DataFrame,
