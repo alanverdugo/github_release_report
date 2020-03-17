@@ -52,7 +52,7 @@ docker build -t github_releases .
 
 ### Run:
 ```bash
-docker run -v /home/alan/git/github_release_report/:/output github_releases \
+docker run -v <host_path_for_output_files>:/output github_releases \
     -o <ORGANIZATION_NAME> \
     -s <YYYY-MM-DD> \
     -e <YYYY-MM-DD> \
@@ -76,10 +76,10 @@ docker run -v /home/alan/git/github_release_report/:/output github_releases \
 
 
 ## Build status
-Type            | Service               | Branch            | Status
----             | ---                   | ---               | ---
-CI (Linux)      | Travis                | master            | [![Build Status](https://travis-ci.com/alanverdugo/github_release_report.svg?branch=master)](https://travis-ci.com/alanverdugo/github_release_report)
-CI (Linux)      | Travis                | development       | [![Build Status](https://travis-ci.com/alanverdugo/github_release_report.svg?branch=development)](https://travis-ci.com/alanverdugo/github_release_report)
+Type       | Service | Branch      | Status
+---        | ---     | ---         | ---
+CI (Linux) | Travis  | master      | [![Build Status](https://travis-ci.com/alanverdugo/github_release_report.svg?branch=master)](https://travis-ci.com/alanverdugo/github_release_report)
+CI (Linux) | Travis  | development | [![Build Status](https://travis-ci.com/alanverdugo/github_release_report.svg?branch=development)](https://travis-ci.com/alanverdugo/github_release_report)
 
 
 ## SonarCloud status
