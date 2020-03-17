@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-A humble script to build a humble report about Github releases in an organization.
+A humble script to build a humble report of GitHub releases in an organization.
 
 Usage: report_releases.py [-h] [-v]
             -s START_DATE
@@ -49,6 +49,7 @@ PARAMS = {
 
 # Get the full path where this program exist.
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+OUTPUT_PATH = os.path.join(DIR_PATH, "output")
 
 
 def main():
@@ -82,7 +83,7 @@ def get_releases(repo_list: list,
     """
     Get release data from the releases endpoint and add it to a dataframe.
 
-    :param repo_list: A list containing the name of the repositories in the org.
+    :param repo_list: A list of the names of the repositories in the org.
     :param args: A dictionary containing the CLI arguments.
     :param auth: The requests authentication object.
     :returns df_releases: A Pandas DataFrame with GitHub releases data.
@@ -153,13 +154,10 @@ def save_output_files(df_releases: pandas.DataFrame,
     :param
     :param
     """
-    LOG.debug("Type of start_date: %s", type(start_date))
-    LOG.debug("Type of end_date: %s", type(end_date))
-
     filename = f"releases_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}"
 
     # Save data to .csv
-    csv_abs_filename = os.path.join(DIR_PATH, filename + ".csv")
+    csv_abs_filename = os.path.join(OUTPUT_PATH, filename + ".csv")
     LOG.info("Saving data to %s", csv_abs_filename)
     df_releases.to_csv(csv_abs_filename,
                        index=False,
@@ -167,7 +165,7 @@ def save_output_files(df_releases: pandas.DataFrame,
                        encoding="utf-8")
 
     # Save data to .xlsx
-    xlsx_abs_filename = os.path.join(DIR_PATH, filename + ".xlsx")
+    xlsx_abs_filename = os.path.join(OUTPUT_PATH, filename + ".xlsx")
     LOG.info("Saving data to %s", xlsx_abs_filename)
     df_releases.to_excel(xlsx_abs_filename,
                          index=None,

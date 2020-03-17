@@ -6,6 +6,75 @@ A humble script to build a humble report about Github releases in an organizatio
     </a>
 </p>
 
+## Usage:
+```bash
+python3 report_releases.py [-h] [-v]
+        -s START_DATE
+        -e END_DATE
+        -o ORG
+        -u USER
+        -t TOKEN
+        -a API_URL
+```
+
+## Arguments:
+```bash
+  -h, --help            show this help message and exit
+  -v, --verbose         Print INFO, WARNING, and ERROR messages to the stdout
+                        or stderr.
+  -s START_DATE, --start-date START_DATE
+                        Start date for range (YYYY-MM-DD).
+  -e END_DATE, --end-date END_DATE
+                        End date for range (YYYY-MM-DD).
+  -o ORG, --organization ORG
+                        Github user
+  -u USER, --user USER  Github user
+  -t TOKEN, --token TOKEN
+                        Github token
+  -a API_URL, --api_url API_URL
+                        URL of the Github API
+```
+
+
+## Execute with Docker:
+
+A Dockerfile is included in order to make execution easier. Since the entrypoint accepts extra parameters, they can be supplied after the image name in `docker run`. See below for an example:
+
+### Build:
+```bash
+docker build -t <image_name> .
+```
+
+Example:
+```bash
+docker build -t github_releases .
+```
+
+### Run:
+```bash
+docker run -v /home/alan/git/github_release_report/:/output github_releases \
+    -o <ORGANIZATION_NAME> \
+    -s <YYYY-MM-DD> \
+    -e <YYYY-MM-DD> \
+    -u <GITHUB_USERNAME> \
+    -t <GITHUB_API_TOKEN> \
+    -a <GITHUB_API_URL>
+```
+
+Example:
+```bash
+docker run -v /home/alan/git/github_release_report/:/output github_releases \
+    -o MarketingSystems \
+    -s 2020-03-02 \
+    -e 2020-03-13 \
+    -u octocat \
+    -t my_g1thub_t0k3n \
+    -a https://api.github.com \
+    -d
+```
+
+
+
 ## Build status
 Type            | Service               | Branch            | Status
 ---             | ---                   | ---               | ---
