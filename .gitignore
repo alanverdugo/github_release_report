@@ -7,6 +7,8 @@ __pycache__/
 *.csv
 *.xls
 *.xlsx
+*.swp
+.~lock*
 
 # C extensions
 *.so
